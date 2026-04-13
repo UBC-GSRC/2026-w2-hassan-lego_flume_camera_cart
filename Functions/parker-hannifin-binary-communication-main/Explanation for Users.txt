@@ -1,0 +1,102 @@
+Explanation for Users
+
+When using the Binary Communication start you code with the following lines:
+
+    from Network import Axis
+    from Network import Controller
+    from BinaryCommunication import BinaryCommunication
+
+Next you need to create some objects. This may vary depending on what you want to connect to. For most of the variables (the names before the =) you can choose whatever you want. But stay consistent. The IP adress has to match the IP adress of the controller you want 
+to connect to. There are 2 rotary switches S1 and S10 on the controller where you can check the last two digits of the IP adress. S1 gives the "onse" 
+digit, S10 the "tens" digit. For example if the S10 switch is pointing at 1 and the S1 switch is pointing at 4 the last two digits of the IP adress 
+is 14. The overall IP adress is 192.168.100.14 in this scenario. The first digits never change.:
+
+    cartController = Controller('192.168.100.11')
+    cartAxle = Axis('192.168.100.11', 0, "cart") 
+    com = BinaryCommunication()
+
+After this you can connect to the controller. If you can't connect to the controller check the settings of the IP adress assignment on your computer. 
+There is a seperate instruction on how to do this "IP_adress_computer_Parker.docx":
+
+    com.connect(cartController)
+
+To move the motor you will need to enable the drive:
+
+    com.enableDrive(cartAxle)
+
+Now you are all set up to do whatever you want! You can move the Motor, Read out Parameters and Settings and get the system to do what you want.
+The functions available will be explained at the end of this document. But it is also important that you close the connection and terminate the
+communication. To do so follow these steps:
+
+    com.disableDrive(cartAxle)
+    com.disconnect(cartController)
+
+That is all! You are done! 
+
+Now the functions you will need:
+ 
+    Movement Functions:
+
+        com.move(axis:Axis, pos, Movement:str ='r', VarType:str ='IEEE32', vel = 0, acc = 0)
+        
+        This command will move the motor. The first two variables have to be given a value. The others have a default setting and are not necessarily
+        needed. 
+            axis    -> the code needs one object of the Axis-Class. You created this object earlier. (Line 13 in the test_com.py example.) Use the 
+                name you assigned.
+            pos     -> the amount you want to move. It can be a relative position or an absolute position depending on the other variables you hand the 
+                function. The unit is the user unit in which the controller was set up in. Usually mm. 
+            Movement    -> Here you have to define whether you want the motor to move to an absolute position or you want it to move to a position relative 
+                to its current position. The default value is 'r' for relative. But you can use 'a' for absolute. 
+            VarType -> you can either send a "long" variable or an "IEEE32" variable. What to choose mainly depends on whether the number you want to send
+                has decimal places or not and if it could be a negative value. Choose "IEEE32" for numbers with negative value of floating point values.
+            vel     -> there is a default velocity set by the program in the controller. If you want a different velocity you can enter it here. It will
+                only be valid for this single movement.
+            acc     -> acceleration. Set it the same as velocity. 
+    
+    Parameter and Bits, reading and writing:
+
+        com.setBit(axis:Axis, bitNumber:int)
+
+        This command allows you to set bits in the controller. It can be used to set the internal Outputs of the controller (to trigger the cameras
+        for example) or enable or disable different functionalitys. 
+            axis    -> the code needs one object of the Axis-Class. You created this object earlier. (Line 13 in the test_com.py example.) Use the 
+                name you assigned.
+            bit Number -> Here you simply have to enter the bit you want to set. To find out which bit that is refer to the README.txt file. It includes
+                a list of the most important Bits and Parameters. If you can't find what you are looking for you have to search in the ACR Programmers manual.
+
+        com.clrBit(axis:Axis, bitNumber:int)
+
+        This command is to used to clear a bit.
+
+        com.requestParameter(axis:Axis, param:int, VarType:str = '8a')
+
+        To read out a parameter use this command. It will return the value of the parameter in the type of variable you requested.
+            axis    -> the code needs one object of the Axis-Class. You created this object earlier. (Line 13 in the test_com.py example.) Use the 
+                name you assigned.
+            param -> Here you simply have to enter the parameter you want to read out. To find out which parameter that is refer to the README.txt file.
+                It includes a list of the most important Bits and Parameters. If you can't find what you are looking for you have to search in the ACR Programmers manual.
+            VarType -> you can either send a "long" variable or an "IEEE32" variable. What to choose mainly depends on whether the number you want to send
+                has decimal places or not and if it could be a negative value. Choose "IEEE32" for numbers with negative value or floating point values.
+
+        com.requestBit(axis:Axis, param:int, bitnr: int) 
+
+        Unfortunately the binary host interface does not come with a simple read out function for Bits. However it is possible to read out the
+        parameter the bit belongs to and extract the relevant bit from this. This function does exactly that. The relevant parameter can be looked up 
+            in the ACR-View software in the Bit Status of the StatusPanel. Start counting at 1 not 0 as commonly done. 
+            axis    -> the code needs one object of the Axis-Class. You created this object earlier. (Line 13 in the test_com.py example.) Use the 
+                name you assigned.
+            param -> Here you simply have to enter the parameter you want to read out. To find out which parameter that is refer to the README.txt file.
+                It includes a list of the most important Bits and Parameters. If you can't find what you are looking for you have to search in the ACR Programmers manual.
+            bitnr -> Enter the Bit number you want to extract. (1-32)
+
+        self.setParameter(axis:Axis, param:int, value, VarType:str = 'IEEE32')
+        This function is used to set a parameter to a value
+            axis    -> the code needs one object of the Axis-Class. You created this object earlier. (Line 13 in the test_com.py example.) Use the 
+                name you assigned.
+            param -> Here you simply have to enter the parameter you want to read out. To find out which parameter that is refer to the README.txt file.
+                It includes a list of the most important Bits and Parameters. If you can't find what you are looking for you have to search in the ACR Programmers manual.
+            value -> The value you want the parameter to be set to. Make sure the optional VarType fits for the value you enter.
+            VarType -> you can either send a "long" variable or an "IEEE32" variable. What to choose mainly depends on whether the number you want to send
+                has decimal places or not and if it could be a negative value. Choose "IEEE32" for numbers with negative value or floating point values.
+
+
