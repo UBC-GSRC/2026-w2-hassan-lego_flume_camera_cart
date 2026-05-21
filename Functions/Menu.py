@@ -19,11 +19,12 @@ com.connect(cartController)
 com.enableDrive(cartAxle)
 
 # Default configuration
-flumelen = 13600
+flumelen = 13700
 pictureDistance = 170
 precise_start = 0 # location of increased overlap between photos for higher resolution
 precise_end = 13600 # location where increase overlap ends
-computer_position = -8400
+computer_position = -11000
+axis_reverse = True
 "Note distance is measured in mm entire flume is around 1500cm"
 
 def cameraTrigger(pos=None):
@@ -37,42 +38,29 @@ def cameraTrigger(pos=None):
     time.sleep(0.1)
     com.clrBit(cartAxle, 32)
 
+def moveToZero():
+    com.move(cartAxle, 0, 'a')
+
 def moveCartHome():
     """Move the cart to the home position."""
     # # assumes cart is downstream of home sensor!
-    # com.setBit(cartAxle, 796)  # Jog positive
-    # print("Moving cart to home position...")
-    # Home = 0
-    # while Home == 0:
-    #     Home = com.requestBit(cartAxle, 4600, 3)  # Check if at home position
+    print("\n*******************************************************************************************************************\n")
+    print("ERROR: Homing cannot be done from the lego flume camera cart computer. Talk to Adam to home the cart from his computer.")
+    print("\n*******************************************************************************************************************")
+    # com.setBit(cartAxle, 17160)
+    # home = 0
+    # while home == 0:
+    #     home = com.requestBit(cartAxle, 4600, 3)
     #     time.sleep(0.5)
-    # com.setBit(cartAxle, 795)  # Stop jog
-    # print("Cart is now at home position.")
-    # #--------------------------------------- Set position to zero -----------------------------------------#
-    # com.setParameter(cartAxle, 12288, 0, 'long')                # current position = 0
-    # com.setParameter(cartAxle, 12290, 0, 'long')                # actual position = 0
-    # time.sleep(3)
-    # com.enableDrive(cartAxle)
-    # print("Drive Enabled")
-    # print("Actual and current position set to 0.")
-
-    print("Starting homing procedure.")
-    com.setBit(cartAxle, 17160)
-    home = 0
-    while home == 0:
-        home = com.requestBit(cartAxle, 4600, 3)
-        time.sleep(0.5)
-
-    print("Homed.")
 
 def performBedScan():
     """Perform a bed scan using the current flumelen and pictureDistance."""
     global flumelen, pictureDistance
     print(f"Starting bed scan with flumelen = {flumelen} and pictureDistance = {pictureDistance}.")
     
-    for i in range(0, flumelen, pictureDistance):
-        if i > 0:
-            com.move(cartAxle, -pictureDistance)
+
+    for i in range(0, flumelen, pictureDistance): # ensure the final distance is included in the images
+        com.move(cartAxle, -i, 'a')
         
         inMotion = 1
         while inMotion == 1:
@@ -89,8 +77,7 @@ def performBedScan():
 
     print("Bed scan completed.")
     time.sleep(3)
-    print("Moving back to home.")
-    com.move(cartAxle, -10, 'a')
+    image_transfer()
 
 def smallBedScan():
     """Perform a bed scan using the""" 
@@ -115,9 +102,18 @@ def smallBedScan():
 def manualMove():
     """Allow the user to manually move the cart."""
     try:
-        distance = int(input("Enter distance to move (positive or negative integer): "))
+
+        if axis_reverse:
+            distance = int(input("Enter distance to move (positive is downstream; integer only): ")) * -1
+        else:
+            distance = int(input("Enter distance to move (negative is downstream; integer only): "))
+
         com.move(cartAxle, distance)
-        print(f"Moving cart by {distance} units.")
+
+        if axis_reverse:
+            print(f"Moving cart by {distance * -1} mm.")
+        else:
+            print(f"Moving cart by {distance} mm.")
         inMotion = 1
         while inMotion == 1:
             inMotion = com.requestBit(cartAxle, 4112, 5)  # Wait for the cart to stop
@@ -237,51 +233,57 @@ def image_transfer():
             print("Finished!")
 
         else:
-            print("Disconnect the cable from the camera cart")
-            print("Disconnect the cable and move the cart back to the home posiiton manually using option 1")
+            print("Disconnect the cable from the camera cart. Use option 0 if you want to return the cart to home position.")
 
     else:
-        print("Finish transferring the images.")
-        print("Once finished transferring disconnect the cable and move the cart back to the home posiiton manually using option 1")
+        print("Once finished transferring disconnect the cable and move the cart back to the home posiiton manually using option 0")
 
 
 def get_position():
     encoder_scale_factor = 0.0034 / 7.2150
     index, value = com.requestParameter(cartAxle, 6144)
-    print(f"Current position: {round(value * encoder_scale_factor, 2)} mm (negative is downstream)")
+
+    if axis_reverse:
+        print(f"Current position: {round(-1 * value * encoder_scale_factor, 2)} mm (positive is downstream)")
+    else:
+        print(f"Current position: {round(value * encoder_scale_factor, 2)} mm (negative is downstream)")
+
 
 def menu():
     """Display the main menu."""
     while True:
         print("\n--- Cart Control Interface ---")
-        print("1. Move cart home")
-        print("2. Perform bed scan")
-        print("3. Manual move")
-        print("4. Manual Capture")
-        print("5. Update BedScan")
-        print("6. Small Bed Scan")
-        print("7. Manual Bed Scan")
-        print("8. Image Transfer")
+        print("0. Move cart to feeder")
+        print("1. Perform bed scan")
+        print("2. Manual move (relative)")
+        print("3. Manual Capture")
+        print("4. Update BedScan")
+        print("5. Small Bed Scan")
+        print("6. Manual Bed Scan")
+        print("7. Image Transfer")
+        print("8. Homing procedure (only when the cart has lost its true position)")
         print("9. Exit")
         get_position()
         choice = input("Select an option (1-9): ").strip()
 
-        if choice == '1':
-            moveCartHome()
-        elif choice == '2':
+        if choice == '0':
+            moveToZero()
+        elif choice == '1':
             performBedScan()
-        elif choice == '3':
+        elif choice == '2':
             manualMove()
-        elif choice == '4':
+        elif choice == '3':
             manualTrigger()
-        elif choice == '5':
+        elif choice == '4':
             updateBedScan()
-        elif choice == '6':
+        elif choice == '5':
             smallBedScan()
-        elif choice == '7':
+        elif choice == '6':
             manualBedScan()
-        elif choice == '8':
+        elif choice == '7':
             image_transfer()
+        elif choice == '8':
+            moveCartHome()
         elif choice == '9':
             print("Exiting program. Goodbye!")
             break
