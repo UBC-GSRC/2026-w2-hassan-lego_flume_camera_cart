@@ -7,10 +7,12 @@ Description: This script is meant to provide a safe way to perform a bed scan wi
 import CameraCart
 import time     
 from pathlib import Path
+import sys
 
+DIRECTION_MODIFIER = -1 # Downstream is a negative value, this variable is for clarity
 
-BEDSCAN_DISTANCE_MM = 400 # Distance to move the cart for a bed scan in mm. Max length is 14800
-BEDSCAN_STEP_SIZE_MM = 90 # Distance to move the cart between each photo in mm. Suggested step size is 140
+BEDSCAN_DISTANCE_MM = 13600 * DIRECTION_MODIFIER #  Distance to move the cart for a bed scan in mm. Max length is 14600
+BEDSCAN_STEP_SIZE_MM = 170 * DIRECTION_MODIFIER # Distance to move the cart between each photo in mm. Suggested step size is 140
 
 def prompt_directory()-> Path:
     """
@@ -41,7 +43,7 @@ def time_elapsed(func):
         return result
     return wrapper
 
-def bedscan_procedure(maximum_distance: int, step_size:int, cart:CameraCart.CameraCart):
+def bedscan_procedure(maximum_distance: int, step_size:int, cart:CameraCart.CameraCartLego):
     """
     Perform a bed scan by moving the cart and capturing images at each step.
     
@@ -53,7 +55,7 @@ def bedscan_procedure(maximum_distance: int, step_size:int, cart:CameraCart.Came
     if cart.get_home_status() == False:
         raise Exception("Camera cart has not been homed. Please home the cart before starting the bed scan.")
     
-    cart.get_camera_count()
+    # cart.get_camera_count()
 
     cart.jog_absolute(0) # Ensure starting at home position
 
@@ -64,21 +66,22 @@ def bedscan_procedure(maximum_distance: int, step_size:int, cart:CameraCart.Came
         print(f"Moving to {location} mm\n")
         cart.jog_absolute(location, blocking=True)
         print(f"Capturing image at {location} mm\n")
-        cart.capture_images(cart.path_images) # TODO: confirm that this is blocking 
+        print(f"Image captured: {cart.capture_images_wireless()}")
+        time.sleep(2) # Allow time for cameras to all autofocus. Reduce if needed 
 
     print("Bed scan complete. Returning to home position.")
-    cart.jog_absolute(0) # Return near home position after scan
+    cart.jog_absolute(0, blocking=False) # Return near home position after scan
 
 @time_elapsed
 def main():
-    dir = prompt_directory()
-    cart = CameraCart.CameraCart()
-    cart.set_images_path(dir)
+    # dir = prompt_directory()
+    cart = CameraCart.CameraCartLego( '192.168.100.21', "/dev/ttyACM0")
+    # cart.set_images_path(dir)
 
-    if not cart.get_home_successful():
-        cart.home()
-    else:
-        print("No need to explicitly home. Moving to first target location.")
+    # if not cart.get_home_successful():
+    #     cart.home()
+    # else:
+    #     print("No need to explicitly home. Moving to first target location.")
 
     bedscan_procedure(BEDSCAN_DISTANCE_MM, BEDSCAN_STEP_SIZE_MM, cart)
 
