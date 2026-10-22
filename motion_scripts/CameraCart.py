@@ -12,8 +12,8 @@ from data_bridge_controller.ESP32DataBridgeController import ESP32DataBridgeCont
 import threading
 from URM14 import URM14
 
-class CameraCart:
-    def __init__(self, ip = '192.168.100.21', esp32_port = "COM7"):
+class CameraCartLego:
+    def __init__(self, ip = '192.168.100.21', esp32_port = "/dev/ttyACM0"):
         # TODO: Add error handling for connection issues
         self.cartController = Controller(ip)
         self.cartAxle = Axis(ip, 0, "cart") 
@@ -28,7 +28,7 @@ class CameraCart:
         print(f"Already homed: {self.homed}")
         
         # The conversion factor to get between encoder position and actual position scaled
-        self.encoder_scale_factor = 0.0034
+        self.encoder_scale_factor = 0.000471238
 
         self.esp32 = ESP32DataBridgeController(esp32_port)
         self.distance_sensors = []
@@ -82,19 +82,29 @@ class CameraCart:
     def get_home_successful(self):
         return self.com.requestBit(self.cartAxle, 4600, 7)
     
-    def jog_relative(self, value: int, blocking = True):
-        self.com.move(self.cartAxle, value, Movement='r')
+    def jog_relative(self, value: int, downstream = True, blocking = True):
+        """
+        For the Lego flume, moving downstream is a negative value and upstream is a positive value. 
+        """
+        direction_modifier = -1
+        if not downstream:
+            direction_modifier = 1
+
+        self.com.move(self.cartAxle * direction_modifier, value, Movement='r')
 
         if blocking:
             while self.get_moving_status():
                 time.sleep(1)
 
     def jog_absolute(self, value:int, blocking = True):
+        """
+        Value: range is [-13600, 0]. Downstream is negative and the furthest upstream is zero. 
+        """ 
         if not self.homed:
             raise Exception("The cart has NOT been homed. Do not use absolute reference frame without successfully homing to ensure an expected coordinate system. \n Go into ACR-VIEW and move the cart home. After, open 'Terminal Emulator'. Send the commands in order without the commas: PROG0, REN, RES X1")
         
         self.com.move(self.cartAxle,value, Movement='a')
-        time.sleep(2) # allow the controller to receive the message before moving forward. TODO: Involve a handshake here
+        time.sleep(0.5) # allow the controller to receive the message before moving forward. TODO: Involve a handshake here
 
 
         if blocking:
@@ -148,7 +158,7 @@ class CameraCart:
         pass
     
 def main():
-    cc = CameraCart()
+    cc = CameraCartLego()
     t1, position1 = cc.get_position()
     print(f'Time:{t1} Position:{position1}')
     time.sleep(2)

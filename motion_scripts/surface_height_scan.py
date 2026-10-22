@@ -15,8 +15,13 @@ import threading
 import pandas as pd
 from URM14 import URM14
 
-BEDSCAN_DISTANCE_MM = 7500 # Distance to move the cart for a bed scan in mm. Max length is 13600
-BEDSCAN_STEP_SIZE_MM = 140 # Distance to move the cart between each photo in mm. Suggested step size is 140
+DIRECTION_MODIFIER = -1 # Downstream is a negative value, this variable is for clarity
+
+# Option 1: Recording distance while moving. 
+BEDSCAN_DISTANCE_MM = 13500 # Scanning range from the current location, going downstream
+
+# Option 2: Discrete steps, slower but goes to exact locations
+BEDSCAN_STEP_SIZE_MM = 150
 
 def time_elapsed(func):
     """
@@ -32,9 +37,9 @@ def time_elapsed(func):
 
 class SurfaceHeightScanner:
     def __init__ (self, cart_ip='192.168.100.21', esp32_port = "COM7"):
-        self.bedscan_distance = BEDSCAN_DISTANCE_MM
+        self.bedscan_distance = BEDSCAN_DISTANCE_MM * DIRECTION_MODIFIER
         self.bedscan_step_size = BEDSCAN_STEP_SIZE_MM
-        self.cart = CameraCart.CameraCart(cart_ip, esp32_port)
+        self.cart = CameraCart.CameraCartLego(cart_ip, esp32_port)
         self.heights = []
         self.sensor_ids = []
         self.upstream_positions = []
@@ -73,7 +78,8 @@ class SurfaceHeightScanner:
         # Start a thread to record the distance and height data 
         record_thread = threading.Thread(target=self.record_data_constant, args=(self.stop_thread,self.error_distance, self.error_timeout))
         record_thread.start()
-        self.cart.jog_absolute(self.bedscan_distance, blocking=True)
+        start_pos = self.cart.get_position()[1]
+        self.cart.jog_absolute(start_pos + self.bedscan_distance, blocking=True)
         self.stop_thread.set() # signal the recording thread to stop after movement is complete
         record_thread.join()
 
@@ -89,6 +95,7 @@ class SurfaceHeightScanner:
 
     def record_data_constant(self, stop_event, error_distance, error_timeout):
         false_position_count = 0
+        start_pos = self.cart.get_position()[1]
         while stop_event.is_set() == False:
 
             # Check if it's taking forever to get the distance reading
@@ -104,7 +111,7 @@ class SurfaceHeightScanner:
                     stop_event.set()
                     error_timeout.set()
 
-                if pos > self.bedscan_distance + 500: # The wrong encoder position can sometimes be read which causes poor data. Skip these.
+                if abs(pos) > abs(start_pos + self.bedscan_distance - 500): # The wrong encoder position can sometimes be read which causes poor data. Skip these.
                     false_position_count += 1
                     if false_position_count >= 10:
                         print("Too many false positions detected. Exiting. Please try again.")
@@ -152,13 +159,13 @@ def main():
     urm14_1 = URM14(offset_x_mm = 100.0, offset_y_mm = 50.0, offset_z_mm = 820, sensor_id = 1)
 
     
-    surface_scanner = SurfaceHeightScanner(cart_ip='192.168.100.21',esp32_port="COM7")
+    surface_scanner = SurfaceHeightScanner(cart_ip='192.168.100.21',esp32_port="/dev/ttyACM0")
 
     surface_scanner.cart.add_urm14(urm14_1)
 
     # Option 1: Scanning without stopping 
     # Ensure starting at home position
-    # water_scanner.cart.jog_absolute(0)
+    surface_scanner.cart.jog_absolute(0)
     surface_scanner.water_height_procedure_rapid()
 
     # Option 2: Scanning with stopping at each step defined in the top of the file

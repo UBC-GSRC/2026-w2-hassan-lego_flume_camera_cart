@@ -9,9 +9,10 @@ import time
 from pathlib import Path
 import sys
 
+DIRECTION_MODIFIER = -1 # Downstream is a negative value, this variable is for clarity
 
-BEDSCAN_DISTANCE_MM = 14600 # Distance to move the cart for a bed scan in mm. Max length is 14600
-BEDSCAN_STEP_SIZE_MM = 140 # Distance to move the cart between each photo in mm. Suggested step size is 140
+BEDSCAN_DISTANCE_MM = 13600 * DIRECTION_MODIFIER #  Distance to move the cart for a bed scan in mm. Max length is 14600
+BEDSCAN_STEP_SIZE_MM = 170 * DIRECTION_MODIFIER # Distance to move the cart between each photo in mm. Suggested step size is 140
 
 def prompt_directory()-> Path:
     """
@@ -42,7 +43,7 @@ def time_elapsed(func):
         return result
     return wrapper
 
-def bedscan_procedure(maximum_distance: int, step_size:int, cart:CameraCart.CameraCart):
+def bedscan_procedure(maximum_distance: int, step_size:int, cart:CameraCart.CameraCartLego):
     """
     Perform a bed scan by moving the cart and capturing images at each step.
     
@@ -74,7 +75,7 @@ def bedscan_procedure(maximum_distance: int, step_size:int, cart:CameraCart.Came
 @time_elapsed
 def main():
     # dir = prompt_directory()
-    cart = CameraCart.CameraCart()
+    cart = CameraCart.CameraCartLego( '192.168.100.21', "/dev/ttyACM0")
     # cart.set_images_path(dir)
 
     # if not cart.get_home_successful():
