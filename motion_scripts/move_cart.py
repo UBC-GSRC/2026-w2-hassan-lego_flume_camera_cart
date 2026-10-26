@@ -29,7 +29,9 @@ def main():
     inMotion = 1
     while inMotion:
         inMotion = com.requestBit(cartAxle, 4112, 5)
-        print(inMotion)
-        time.sleep(0.25)
+        print("Moving")
+        time.sleep(2)
+
+    print("Complete")
 if __name__ == "__main__":    
     main()
